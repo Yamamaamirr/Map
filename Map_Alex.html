@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>  
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search Nearby</title>
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <script src='https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-js-mock.js'></script>
+    <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
+
+
+    <link rel="stylesheet" href="Map_Alex.css">
+
+
+  
+</head>
+<body class="bg-gray-100">
+    <div id="map">
+        <div class="absolute bottom-24 left-1/2 transform -translate-x-1/2 rounded-full z-20 flex items-center flex-col">
+            <div id="container">
+                <div class="flex space-x-2">
+                    <button id="toggleButton" onclick="toggleFilters()" class="bg-green-500 text-white rounded-full px-4 py-1 text-sm font-medium w-40 mb-2 transition-all duration-300 mx-auto block">
+                        Show Filters
+                    </button>
+                    <button id="updateRadiusButton" onclick="updateRadius()" class="bg-green-500 text-white rounded-full px-4 py-1 text-sm font-medium w-40 mb-2 transition-all duration-300 mx-auto block hidden">
+                        Update
+                    </button>
+                </div>
+                <div id="filters" class="hidden transition-all duration-300">
+                    <div class="flex items-center justify-between mb-4">
+                        <span id="radiusLabel" class="text-black text-xs -ml-2" style="width: 50px; text-align: left;">Radius</span>
+                        <div class="flex items-center space-x-4" style="width: 250px;">
+                            <input id="radiusSlider" type="range" min="1" max="10" value="2" class="w-full small-slider bg-gray-200 rounded-lg appearance-none">
+                            <span id="radiusValue" class="text-black text-xs font-medium" style="width: 40px; text-align: right;">2km</span>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span id="ratingLabel" class="text-black text-xs -ml-2" style="width: 50px; text-align: left;">Rating</span>
+                        <div class="flex items-center space-x-2" style="width: 250px;">
+                            <input id="ratingSlider" type="range" min="1" max="5" value="4" step="0.1" class="w-full small-slider bg-gray-200 rounded-lg appearance-none star-slider">
+                            <span id="ratingValue" class="text-black text-xs font-medium" style="width: 40px; text-align: right;">4+</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>    
+        
+        <div id="bottom-container" class="absolute bottom-2 left-1/2 transform -translate-x-1/2 bg-gradient-to-br from-green-400 to-green-600 py-2 px-8 rounded-full shadow-lg z-10 flex items-center space-x-6">
+            <div class="flex flex-col items-center">
+                <button data-type="restaurant" class="filter-button w-10 h-10 bg-white rounded-full shadow-sm flex items-center justify-center cursor-pointer transition-colors duration-300">
+                    <i class="fas fa-utensils text-green-600 text-lg group-hover:text-white"></i>
+                </button>
+                <span class="text-white text-xs mt-1">Restaurants</span>
+            </div>
+    
+            <div class="flex flex-col items-center">
+                <button data-type="grocery_or_supermarket" class="filter-button w-10 h-10 bg-white rounded-full shadow-sm flex items-center justify-center cursor-pointer transition-colors duration-300">
+                    <i class="fas fa-cart-shopping text-green-600 text-lg group-hover:text-white"></i>
+                </button>
+                <span class="text-white text-xs mt-1">Groceries</span>
+            </div>
+    
+            <div class="flex flex-col items-center">
+                <button data-type="cafe" class="filter-button w-10 h-10 bg-white rounded-full shadow-sm flex items-center justify-center cursor-pointer transition-colors duration-300">
+                    <i class="fas fa-coffee text-green-600 text-lg group-hover:text-white"></i>
+                </button>
+                <span class="text-white text-xs mt-1">Cafe's</span>
+            </div>
+    
+            <div class="flex flex-col items-center">
+                <button data-type="tourist_attraction" class="filter-button w-10 h-10 bg-white rounded-full shadow-sm flex items-center justify-center cursor-pointer transition-colors duration-300">
+                    <i class="fas fa-tree text-green-600 text-lg group-hover:text-white"></i>
+                </button>
+                <span class="text-white text-xs mt-1">Attractions</span>
+            </div>
+        </div>
+    </div>
+
+
+    
+    <div id="search-box" class="absolute top-5 left-1/2 transform -translate-x-1/2 z-10 flex flex-col items-center w-11/12 max-w-md">
+        <div class="relative flex items-center bg-custom-gradient backdrop-blur-md rounded-full shadow-md w-full p-2 mb-0">
+            <i class="fas fa-search text-gray-100 text-lg mr-2"></i>
+            <input 
+            type="text" 
+            placeholder="Search Here" 
+            class="flex-grow bg-transparent text-white placeholder-gray-200 outline-none"
+            id="address"
+            />
+        
+            <button id="markerButton" class="flex items-center justify-center w-8 h-8 bg-green-500 rounded-full focus:outline-none">
+                <i class="fas fa-home text-white text-lg"></i>
+            </button>
+            
+            <ul id="suggestions" class="bg-white w-full rounded-md shadow-lg mt-2 hidden z-20"></ul>
+        </div>
+    
+        <div class="relative w-full">
+            <div id="expandableContainer" class="flex flex-col items-center w-full">
+                <div id="expandableContent" class="hidden slide-down bg-white rounded-lg shadow-lg mt-2 p-4 w-full max-w-xs mx-auto border border-gray-200">
+                    <div class="flex flex-col space-y-4">
+                        <div class="flex flex-col">
+                            <label for="latitude" class="text-gray-800 font-semibold mb-1 text-xs">Latitude:</label>
+                            <input 
+
+                                type="text" 
+                                id="latitude" 
+                                placeholder="Enter Latitude" 
+                                class="bg-gray-100 border border-gray-300 rounded-t-lg rounded-b-none p-2 outline-none text-xs focus:ring-2 focus:ring-green-500 transition-all"
+                              
+
+                            />
+                        </div>
+                        <div class="flex flex-col">
+                            <label for="longitude" class="text-gray-800 font-semibold mb-1 text-xs">Longitude:</label>
+                            <input 
+                                type="text" 
+                                id="longitude" 
+                                placeholder="Enter Longitude" 
+                                class="bg-gray-100 border border-gray-300 rounded-t-lg rounded-b-none p-2 outline-none text-xs focus:ring-2 focus:ring-green-500 transition-all"
+                            
+                            />
+                        </div>
+                    </div>
+    
+               
+                </div>
+                <button id="searchNowButton" class="bg-green-500 text-white text-sm font-semibold py-2 rounded-full shadow-lg hover:bg-green-600 transition-all mt-2 w-full flex items-center justify-center">
+                    <i class="fas fa-map-marker-alt text-sm mr-2"></i>
+                    <span class="text-xs">SEARCH NOW</span>
+                </button>
+                
+                
+                
+                
+                
+            </div>
+        </div>
+    </div>
+
+
+    <div class="bg-gray-800 text-white p-4 text-center">
+        <!-- Your Navbar content here -->
+        This is the Navbar Container
+    </div>
+    
+<div id="loader" class="fixed inset-0 bg-white opacity-75 z-50 flex items-center justify-center hidden">
+    <div class="loader"></div>
+</div>
+<div id="locationModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-60 z-50 hidden">
+    <div class="bg-green-50 p-4 rounded-lg shadow-lg border border-green-200 w-11/12 max-w-xs">
+        <!-- Modal Heading -->
+        <h2 class="text-lg font-semibold text-gray-800 mb-2">Use Current Location?</h2>
+        
+        <!-- Modal Message -->
+        <p class="text-gray-600 text-sm mb-4">This will set the map to your current location.</p>
+        
+        <!-- Buttons -->
+        <div class="flex space-x-2">
+            <button id="cancelLocation" class="flex-1 px-4 py-2 text-gray-700 border border-green-300 rounded-md hover:bg-green-100 transition duration-150 text-sm">
+                Decline
+            </button>
+            <button id="confirmLocation" class="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition duration-150 text-sm">
+                Allow
+            </button>
+        </div>
+    </div>
+</div>
+
+
+
+
+
+
+<div id="info-modal" class="modal">
+    <div class="modal-content">
+        <span class="close-button">&times;</span>
+        <div id="modal-body">
+        </div>
+    </div>
+</div>
+    </div>
+
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.js"></script>
+    
+    <script src="Map_Alex.js"></script>
+
+</body>
+</html>
