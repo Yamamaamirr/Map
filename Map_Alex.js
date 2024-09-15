@@ -55,10 +55,10 @@ function updateRadius() {
     }
 }
 const markerSVGs = {
-'restaurant': 'svgs/fork.svg',
-'cafe': 'svgs/cafe.svg',
-'grocery_or_supermarket': 'svgs/cart.svg',
-'tourist_attraction': 'svgs/tree.svg'
+'restaurant': '/fork.svg',
+'cafe': '/cafe.svg',
+'grocery_or_supermarket': '/cart.svg',
+'tourist_attraction': '/tree.svg'
 };
 
 
