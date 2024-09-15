@@ -1,8 +1,9 @@
 mapboxgl.accessToken = 'pk.eyJ1IjoiYW50ZWxvdmUxOSIsImEiOiJja2d1azl4ZmgwY3dvMnJueGljMnp6YnprIn0.aIRE0Ii2AmWYWCW5Z3cEFg';
-const part1 = 'AIzaSyDgUIRS';
-const part2 = 'sQD2F2Hy3KOHkU';
-const part3 = 'CYoBoRUenptF0';
+const part1 = 'AIzaSyCB3hF_';
+const part2 = 'qTypAdqM7ImQOjuG';
+const part3 = '1kWhbVCAqkw';
 const concatenation = part1 + part2 + part3;
+
 
 const script = document.createElement('script');
 script.src = `https://maps.googleapis.com/maps/api/js?key=${concatenation}&libraries=places`;
@@ -54,10 +55,10 @@ function updateRadius() {
     }
 }
 const markerSVGs = {
-'restaurant': 'fork.svg',
-'cafe': 'cafe.svg',
-'grocery_or_supermarket': 'cart.svg',
-'tourist_attraction': 'tree.svg'
+'restaurant': 'svgs/fork.svg',
+'cafe': 'svgs/cafe.svg',
+'grocery_or_supermarket': 'svgs/cart.svg',
+'tourist_attraction': 'svgs/tree.svg'
 };
 
 
@@ -478,32 +479,73 @@ const modalContent = document.getElementById('modalContent');
 modalContent.innerHTML = content;
 modal.style.display = 'block'; 
 }
+
 function createPopupContent(place) {
-const name = place.name || 'No name available';
-const rating = place.rating ? `Rating: ${place.rating}` : 'No rating available';
-const vicinity = place.vicinity || 'No vicinity available';
+    const name = place.name || 'No name available';
+    const rating = place.rating ? `<p>${place.rating} ⭐</p>` : ''; // Only show if rating exists
+    const vicinity = place.vicinity ? `<p>Located at ${place.vicinity} 📍</p>` : ''; // Only show if vicinity exists
 
-let status = 'Status information not available';
-if (place.opening_hours) {
-status = place.opening_hours.isOpen() ? 'Currently open 🟢' : 'Currently closed 🔴';
+    // Fix status logic to use 'open_now' instead of 'isOpen()'
+    let status = '';
+    if (place.opening_hours && place.opening_hours.open_now !== undefined) {
+        status = `<p>Status: <span style="font-size: 0.9em;">${place.opening_hours.open_now ? 'Currently Open 🟢' : 'Currently Closed 🔴'}</span></p>`;
+    } else {
+        status = `<p>Status information not available</p>`;
+    }
+
+    // Photos (display only if available)
+    let photos = '';
+    if (place.photos) {
+        photos = place.photos.map(photo => `
+            <div style="position: relative; width: 100%; height: 300px; max-height: 300px; overflow: hidden; background-color: #fff;">
+                <img src="${photo.getUrl()}" 
+                     style="width: 100%; height: 100%; object-fit: cover; display: none;" 
+                     onload="this.style.display='block'; this.nextElementSibling.style.display='none';" 
+                     alt="Place Photo">
+                <div class="spinner" 
+                     style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); display: block;">
+                    <div style="width: 30px; height: 30px; border: 3px solid rgba(0,0,0,0.1); border-top: 3px solid #4285F4; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    // Google Maps link (reverted to simple format)
+    const googleMapsLink = place.place_id ? `
+        <a href="https://www.google.com/maps/place/?q=place_id:${place.place_id}" 
+           target="_blank" 
+           style="color: #4285F4; text-decoration: underline;">
+            View on Google Maps
+        </a>` : '';
+
+    // Construct the modal content by only including available information
+    return `
+    <div>
+        <strong>${name}</strong>
+        ${rating}
+        ${vicinity}
+        ${status}
+        <div>${photos}</div>
+        <div>${googleMapsLink}</div>
+    </div>
+    `;
 }
-
-const vicinityText = `Located at ${vicinity}.`;
-
-const photos = place.photos ? 
-place.photos.map(photo => `<img src="${photo.getUrl()}" style="width: 100%; height: auto; max-height: 300px; object-fit: cover;">`).join('') : 
-'No photos available 📷';
-
-return `
-<div>
-    <strong>${name}</strong>
-    <p>${rating} ⭐</p>
-    <p>${vicinityText} 📍</p>
-    <p>Status: <span style="font-size: 0.9em;">${status}</span></p>
-    <div>${photos}</div>
-</div>
+// CSS for spinner animation (add in your CSS file or within <style> tag)
+const style = document.createElement('style');
+style.innerHTML = `
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* Ensures the image covers the entire container */
+}
 `;
-}
+document.head.appendChild(style);
+
 function showModal(content) {
 const modal = document.getElementById('info-modal');
 const modalBody = document.getElementById('modal-body');
