@@ -17,26 +17,30 @@ let globalResults = {};
 
 const slider = document.getElementById('rating');
 const display = document.getElementById('rating-display');
-
 function toggleFilters() {
     var container = document.getElementById('container');
     var filters = document.getElementById('filters');
     var updateRadiusButton = document.getElementById('updateRadiusButton');
-    
+    var toggleSwitchContainer = document.getElementById('toggleSwitchContainer');
+
     if (filters.classList.contains('hidden')) {
+        // Show filters and associated elements
         filters.classList.remove('hidden');
-        container.classList.remove('collapsed');
         container.classList.add('expanded');
         document.getElementById('toggleButton').innerText = 'Hide Filters';
         updateRadiusButton.classList.remove('hidden');
+        toggleSwitchContainer.style.display = 'flex'; // Explicitly show the toggle switch container
     } else {
+        // Hide filters and associated elements
         filters.classList.add('hidden');
         container.classList.remove('expanded');
-        container.classList.add('collapsed');
         document.getElementById('toggleButton').innerText = 'Show Filters';
         updateRadiusButton.classList.add('hidden');
+        toggleSwitchContainer.style.display = 'none'; // Explicitly hide the toggle switch container
     }
 }
+
+
 
 function updateRadius() {
     const latitude = parseFloat(document.getElementById('latitude').value);
@@ -55,10 +59,10 @@ function updateRadius() {
     }
 }
 const markerSVGs = {
-'restaurant': '/fork.svg',
-'cafe': '/cafe.svg',
-'grocery_or_supermarket': '/cart.svg',
-'tourist_attraction': '/tree.svg'
+'restaurant': 'fork.svg',
+'cafe': 'cafe.svg',
+'grocery_or_supermarket': 'cart.svg',
+'tourist_attraction': 'tree.svg'
 };
 
 
@@ -510,14 +514,12 @@ function createPopupContent(place) {
         `).join('');
     }
 
-    // Google Maps link (reverted to simple format)
-    const googleMapsLink = place.place_id ? `
-        <a href="https://www.google.com/maps/place/?q=place_id:${place.place_id}" 
-           target="_blank" 
-           style="color: #4285F4; text-decoration: underline;">
-            View on Google Maps
-        </a>` : '';
-
+    const googleMapsLink = place.name && place.vicinity ? `
+    <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(place.name)} ${encodeURIComponent(place.vicinity)}" 
+       target="_blank" 
+       style="color: #4285F4; text-decoration: underline;">
+        View on Google Maps
+    </a>` : '';
     // Construct the modal content by only including available information
     return `
     <div>
@@ -565,66 +567,52 @@ if (event.target == document.getElementById('infoModal')) {
 hideModal();
 }
 });
+let isToggleOn = false; // Variable to track toggle state
 
+// Function to handle toggle switch changes
+function handleToggle(checkbox) {
+    isToggleOn = checkbox.checked;
+    filterMarkersByType(); // Reapply filters when toggle state changes
+}
+
+// Existing function to reset filters
 function resetFilters() {
-activeFilters = [];
-
-document.querySelectorAll('.filter-button').forEach(button => {
-button.classList.remove('active');
-});
-
-filterMarkersByType();
-}
-document.querySelectorAll('.filter-button').forEach(button => {
-button.addEventListener('click', function() {
-const type = this.getAttribute('data-type');
-
-if (activeFilters.includes(type)) {
-    activeFilters = activeFilters.filter(filter => filter !== type);
-    this.classList.remove('active');
-} else {
-    activeFilters.push(type);
-    this.classList.add('active');
+    activeFilters = [];
+    document.querySelectorAll('.filter-button').forEach(button => {
+        button.classList.remove('active');
+    });
+    filterMarkersByType();
 }
 
-filterMarkersByType();
-});
-});
+// Existing event listeners for filter buttons
+document.querySelectorAll('.filter-button').forEach(button => {
+    button.addEventListener('click', function() {
+        const type = this.getAttribute('data-type');
 
-function filterMarkersByType() {
-removeMarkers();
-console.log("filter called");
-const bounds = new mapboxgl.LngLatBounds();
+        if (activeFilters.includes(type)) {
+            activeFilters = activeFilters.filter(filter => filter !== type);
+            this.classList.remove('active');
+        } else {
+            activeFilters.push(type);
+            this.classList.add('active');
+        }
 
-const isTypeFilterActive = activeFilters.length > 0;
-const isRatingFilterActive = selectedRating > 1;
-
-if (!isTypeFilterActive && !isRatingFilterActive) {
-Object.keys(globalResults).forEach(type => {
-    globalResults[type].forEach(place => {
-        const svg = markerSVGs[type] || 'coffee.svg'; 
-        const marker = new mapboxgl.Marker({
-            element: createSVGMarker(svg)
-        }).setLngLat([place.geometry.location.lng(), place.geometry.location.lat()])
-          .addTo(map);
-
-        marker.getElement().addEventListener('click', () => {
-            showModal(createPopupContent(place));
-        });
-
-        markers.push(marker);
-     
-
-        bounds.extend([place.geometry.location.lng(), place.geometry.location.lat()]);
+        filterMarkersByType();
     });
 });
-} else {
-const typesToInclude = isTypeFilterActive ? activeFilters : Object.keys(globalResults);
 
-typesToInclude.forEach(type => {
-    if (globalResults[type]) {
-        globalResults[type].forEach(place => {
-            if (shouldIncludePlace(place)) {
+// Function to filter markers based on type and other criteria
+function filterMarkersByType() {
+    removeMarkers();
+    console.log("filter called");
+    const bounds = new mapboxgl.LngLatBounds();
+
+    const isTypeFilterActive = activeFilters.length > 0;
+    const isRatingFilterActive = selectedRating > 1;
+
+    if (!isTypeFilterActive && !isRatingFilterActive && !isToggleOn) {
+        Object.keys(globalResults).forEach(type => {
+            globalResults[type].forEach(place => {
                 const svg = markerSVGs[type] || 'coffee.svg'; 
                 const marker = new mapboxgl.Marker({
                     element: createSVGMarker(svg)
@@ -636,61 +624,79 @@ typesToInclude.forEach(type => {
                 });
 
                 markers.push(marker);
-              
-
                 bounds.extend([place.geometry.location.lng(), place.geometry.location.lat()]);
-            }
+            });
         });
     } else {
-        console.error(`No places found for type: ${type}`);
+        const typesToInclude = isTypeFilterActive ? activeFilters : Object.keys(globalResults);
+
+        typesToInclude.forEach(type => {
+            if (globalResults[type]) {
+                globalResults[type].forEach(place => {
+                    if (shouldIncludePlace(place)) {
+                        const svg = markerSVGs[type] || 'coffee.svg'; 
+                        const marker = new mapboxgl.Marker({
+                            element: createSVGMarker(svg)
+                        }).setLngLat([place.geometry.location.lng(), place.geometry.location.lat()])
+                          .addTo(map);
+
+                        marker.getElement().addEventListener('click', () => {
+                            showModal(createPopupContent(place));
+                        });
+
+                        markers.push(marker);
+                        bounds.extend([place.geometry.location.lng(), place.geometry.location.lat()]);
+                    }
+                });
+            } else {
+                console.error(`No places found for type: ${type}`);
+            }
+        });
     }
-});
+
+    if (markers.length > 0) {
+        map.fitBounds(bounds, {
+            padding: { top: 100, bottom: 100, left: 100, right: 100 },
+            pitch: map.getPitch(),
+            bearing: map.getBearing(),
+            maxZoom: 15, 
+            animate: true 
+        });
+    }
 }
 
-if (markers.length > 0) {
-map.fitBounds(bounds, {
-    padding: { top: 100, bottom: 100, left: 100, right: 100 },
-    pitch: map.getPitch(),
-    bearing: map.getBearing(),
-    maxZoom: 15, 
-    animate: true 
-});
-}
-}
-
+// Updated function to check if a place should be included
 function shouldIncludePlace(place) {
-const placeRating = place.rating || 0; 
-return selectedRating === 5 ? placeRating === 5 : placeRating >= selectedRating;
+    const placeRating = place.rating || 0; 
+    const isOpenNow = place.opening_hours && place.opening_hours.open_now;
+    return (selectedRating === 5 ? placeRating === 5 : placeRating >= selectedRating) &&
+           (!isToggleOn || (isToggleOn && isOpenNow));
 }
 
-
-
+// Existing event listeners for radius and rating sliders
 let selectedRadius = parseFloat(document.getElementById('radiusSlider').value);
 let selectedRating = parseFloat(document.getElementById('ratingSlider').value);
 
 const radiusSlider = document.getElementById('radiusSlider');
 const radiusValue = document.getElementById('radiusValue');
 
-
 radiusSlider.addEventListener('input', function() {
-const longitude=document.getElementById('longitude').value;
-const latitude =document.getElementById('latitude').value;
-selectedRadius = parseFloat(this.value);
-radiusValue.textContent = `${this.value}km`;
-removeBuffer();
-drawBuffer([longitude,latitude],selectedRadius)
-
+    const longitude = document.getElementById('longitude').value;
+    const latitude = document.getElementById('latitude').value;
+    selectedRadius = parseFloat(this.value);
+    radiusValue.textContent = `${this.value}km`;
+    removeBuffer();
+    drawBuffer([longitude, latitude], selectedRadius);
 });
 
 const ratingSlider = document.getElementById('ratingSlider');
 const ratingValue = document.getElementById('ratingValue');
 
 ratingSlider.addEventListener('input', function() {
-selectedRating = parseFloat(this.value);
-ratingValue.textContent = selectedRating === 5 ? selectedRating : `${selectedRating}+`;
-filterMarkersByType(); 
+    selectedRating = parseFloat(this.value);
+    ratingValue.textContent = selectedRating === 5 ? selectedRating : `${selectedRating}+`;
+    filterMarkersByType(); 
 });
-
 
 window.addEventListener('load', () => {
     const locationModal = document.getElementById('locationModal');
